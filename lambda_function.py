@@ -5,6 +5,8 @@ import gnupg
 import os
 
 client = boto3.client('s3')
+transfer_client = boto3.client('transfer')
+
 
 
 def check_file_pair(event):
@@ -54,42 +56,75 @@ def pgp_encrypt_file(file_path, recipient_key_path):
 
     return f"{file_path}.gpg"
 
+def transfer_file(encrypted_file1_path,encrypted_file2_path):
+    print("a")
+    retrieve_file_path1=encrypted_file1_path[5:]
+    retrieve_file_path2=encrypted_file2_path[5:]
+
+    transfer_client = client.start_file_transfer(
+    ConnectorId='skkdkd',
+    SendFilePaths=[
+        encrypted_file1_path,
+        encrypted_file2_path
+
+    ],
+    RemoteDirectoryPath='/upload'
+    )
+
+# def make_intermediate_directories(directories_path):
+#     if "/" in directories_path:
+#         array_of_path= directories_path.split('/')
+#         for index,directory in enumerate(array_of_path):
+#             if index==0:
+#                 base_dir='/tmp' 
+#                 os.mkdir()
+#             else:
+#                 base_dir='/tmp'
         
 
 def lambda_handler(event, context):
     # TODO implement
     result=check_file_pair(event)
     s3 = boto3.resource('s3')
+    print(result[0])
     if result[0]:
-        # make_intermediate_directories(result[1])
-        remote_path_in_array=result[1].split("/")
-        derived_local_path=remote_path_in_array[len(remote_path_in_array)-1]
-        derived_local_path2 = derived_local_path.replace(result[4], result[3])
-        print(derived_local_path)
-        print(derived_local_path2)
+        try:
+            # make_intermediate_directories(result[1])
+            remote_path_in_array=result[1].split("/")
+            print("if condition")
+            derived_local_path=remote_path_in_array[len(remote_path_in_array)-1]
+            derived_local_path2 = derived_local_path.replace(result[4], result[3])
+            print("test1",derived_local_path)
+            print("test2",derived_local_path2)
 
-        response = s3.meta.client.download_file(
-            result[2],
-            result[1],
-            f"/tmp/{derived_local_path}"
-        )
-        response2 = s3.meta.client.download_file(
-            result[2],
-            result[1],
-            f"/tmp/{derived_local_path2}"
-        )
-        s3.meta.client.download_file(
-            'demo-bucket-sftp-start-ica',
-            'public_key/mypubkey.asc',
-            f"/tmp/mypubkey.asc"
-        )   
-        recipient_key_path="/tmp/mypubkey.asc"
-        # pgp_encrypt_file(f"/tmp/{result[1]}",recipient_key_path)
-        print(response)
-        print(response2)
+            response = s3.meta.client.download_file(
+                result[2],
+                result[1],
+                f"/tmp/{derived_local_path}"
+            )
+            response2 = s3.meta.client.download_file(
+                result[2],
+                result[1],
+                f"/tmp/{derived_local_path2}"
+            )
+            s3.meta.client.download_file(
+                'demo-bucket-sftp-start-ica',
+                'public_key/mypubkey.asc',
+                f"/tmp/mypubkey.asc"
+            )   
+            recipient_key_path="/tmp/mypubkey.asc"
+            encrypted_file1_path=pgp_encrypt_file(f"/tmp/{derived_local_path}",recipient_key_path)
+            encrypted_file2_path=pgp_encrypt_file(f"/tmp/{derived_local_path2}",recipient_key_path)
+            transfer_file(encrypted_file1_path,encrypted_file2_path)
+
+
+
+        except:
+            print(response)
+            print(response2)
     else:
         print("Pair is not found")
-
+    print("check")
 
     return {
         'statusCode': 200,
