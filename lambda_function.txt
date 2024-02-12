@@ -5,6 +5,7 @@ import gnupg
 import os
 import zipfile
 import glob
+import datetime
 
 client = boto3.client('s3')
 transfer_client = boto3.client('transfer')
@@ -46,17 +47,37 @@ def check_file_pair(event):
 
 
 def pgp_encrypt_file(file_path, recipient_key_path):
-    gpg = gnupg.GPG()
-    key_data = open(recipient_key_path).read()
-    # print(key_data)
-    import_result = gpg.import_keys(key_data)
-    gpg.trust_keys(import_result.fingerprints, 'TRUST_ULTIMATE')
-    # print(import_result.results)
+    try:
+        # gpg = gnupg.GPG()
+        gpg = gnupg.GPG()
+        
+        key_data = open(recipient_key_path).read()
+        print(key_data)
 
-    with open(file_path, 'rb') as file:
-        status = gpg.encrypt_file(file, recipients=import_result.results[0]['fingerprint'],output=f"{file_path}.gpg")
+        # print(key_data)
+        import_result = gpg.import_keys(key_data)
+        # gpg.trust_keys(import_result.fingerprints, 'TRUST_ULTIMATE')
+        print("import_result",import_result.results)
+        key_index=len(import_result.results)-2
+        print(key_index)
+        print("key_print",import_result.results[key_index]['fingerprint'])
+        f = open(file_path, "r")
+        content=f.read()
+        with open(file_path, 'rb') as file:
+            # status = gpg.encrypt_file(file, recipients=import_result.results[0]['fingerprint'],output=f"{file_path}.gpg")
+            # status=gpg.encrypt("abdcfdjf dhbf","E6AD8EB557B979E25473664D15CC2D5ADE30676B",output=f"{file_path}.gpg")
 
-    return f"{file_path}.gpg"
+            status=gpg.encrypt(content,import_result.results[key_index]['fingerprint'],output=f"{file_path}.gpg")
+
+            # status = gpg.encrypt_file(file, import_result.results[1]['fingerprint'],output=f"{file_path}.gpg")
+        print('ok: ', status.ok)
+        print('status: ', status.status)
+
+
+        return f"{file_path}.gpg"
+    except botocore.exceptions.ClientError as e:
+        print(e)
+        
 
 
 
@@ -64,14 +85,17 @@ def transfer_file(encrypted_file1_path,encrypted_file2_path,bukcet_name):
     print("a")
     # retrieve_file_path1=encrypted_file1_path[5:]
     # retrieve_file_path2=encrypted_file2_path[5:]
+    print("printing tmp")
+    print(os.listdir("/tmp"))
     try:
         response = client.upload_file(encrypted_file1_path, bukcet_name,f"{encrypted_file1_path}")
         response2 = client.upload_file(encrypted_file2_path, bukcet_name,f"{encrypted_file2_path}")
+        print("files uploaded",response2)
 
     except botocore.exceptions.ClientError as e:
         return False
 
-    transfer_client = client.start_file_transfer(
+    connector_client = transfer_client.start_file_transfer(
     ConnectorId='skkdkd',
     SendFilePaths=[
       f"{bukcet_name}/{encrypted_file1_path}"
@@ -80,11 +104,25 @@ def transfer_file(encrypted_file1_path,encrypted_file2_path,bukcet_name):
     ],
     RemoteDirectoryPath='/upload'
     )
+    client.delete_object(Bucket=bukcet_name,Key=encrypted_file1_path)
+    client.delete_object(Bucket=bukcet_name,Key=encrypted_file1_path)
+
     return True
     
-def zip_and_upload_to_s3_success():
-    print("a")
-
+def zip_and_archive(unencrypted_file1_path, unencrypted_file2_path,bukcet_name,s3_key_prefix):
+    print("unencrypted_file1_path value",unencrypted_file1_path)
+    # zip_file1_name=f"{unencrypted_file1_path[5:]}.zip"
+    # zip_file2_name=f"{unencrypted_file2_path[5:]}.zip"
+    print("zip_file1_name value",zip_file1_name)
+    zip_file1_name=f"{unencrypted_file1_path}.zip"
+    zip_file2_name=f"{unencrypted_file2_path}.zip"
+    with zipfile.ZipFile(zip_file1_name, 'w') as f:
+        f.write(unencrypted_file1_path)
+    with zipfile.ZipFile(zip_file2_name, 'w') as f:
+        f.write(unencrypted_file2_path)
+    response = client.upload_file(zip_file1_name, bukcet_name,f"{s3_key_prefix}/{datetime.today().strftime('%Y%m%d')}/{zip_file1_name}")
+    response2 = client.upload_file(zip_file2_name, bukcet_name,f"/{s3_key_prefix}/{datetime.today().strftime('%Y%m%d')}/{zip_file2_name}")
+    return True
 
         
 
@@ -119,18 +157,23 @@ def lambda_handler(event, context):
                 f"/tmp/mypubkey.asc"
             )   
             recipient_key_path="/tmp/mypubkey.asc"
+            print("derived_local_path value",derived_local_path)
             encrypted_file1_path=pgp_encrypt_file(f"/tmp/{derived_local_path}",recipient_key_path)
             encrypted_file2_path=pgp_encrypt_file(f"/tmp/{derived_local_path2}",recipient_key_path)
+            print("encrypted_file1_path value",encrypted_file1_path)
             transfer_file_success=transfer_file(encrypted_file1_path,encrypted_file2_path,result[2])
             if transfer_file_success:
-                # zip_and_upload_to_s3_success()
+                zip_and_archive(f"/tmp/{derived_local_path}",f"/tmp/{derived_local_path2}",result[2],"/success")
+
                 print("files transferred")
             else:
+                zip_and_archive(f"/tmp/{derived_local_path}",f"/tmp/{derived_local_path2}",result[2],"/failure")
                 raise ValueError('oops!')
             # zip_and_upload_to_s3_success()
 
 
-        except:
+        except botocore.exceptions.ClientError as e:
+            print(e)
             print(response)
             print(response2)
     else:
