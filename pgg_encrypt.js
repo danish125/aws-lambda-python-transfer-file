@@ -59,25 +59,46 @@ E1vtXXB5fgEAsyflNGC46nqZsy30F6e2W7A9RYk7MhwmkycOX6G26ww=
 
 // encrypt();
 
-exports.encrypt= async  (event,context) => {
+const pgpEncryptFile= async  (absolute_local_file_path_to_encrypt,result) => {
   const publicKey = await openpgp.readKey({ armoredKey: publicKeyArmored });
   console.log(publicKey)
 
-  const plainData = fs.readFileSync("./SampleCSVFile_2kb.csv",'utf8');
+  const plainData = fs.readFileSync(`${absolute_local_file_path_to_encrypt}`,'utf8');
   console.log(plainData)
   const encrypted = await openpgp.encrypt({
     message: await openpgp.createMessage({ text: plainData }), // input as Message object
     encryptionKeys: publicKey,
   });
   console.log(encrypted)
-  fs.writeFileSync("/tmp/encrypted-secrets.txt", encrypted);
+  fs.writeFileSync(`${absolute_local_file_path_to_encrypt}.gpg`, encrypted);
   // s3.upload({ Bucket: "bucketName", Key: "/tmp", Body: fs.createReadStream("/tmp/encrypted-secrets.txt") }).promise(),
-  const encrypted_file_buffer=fs.readFileSync("/tmp/encrypted-secrets.txt") 
+  const encrypted_file_buffer=fs.readFileSync(`${absolute_local_file_path_to_encrypt}.gpg`) 
   console.log("encrypted_file_buffer",encrypted_file_buffer)
+  
+    // const data=fs.readFileSync(`${absolute_local_file_path_to_encrypt}.gpg`,
+    // { encoding: 'utf8', flag: 'r' });
+    // console.log("filedata",data)
+
+
+    // s3.putObject({ Bucket: result[0].bucket_name, Key: `/encrypted/${absolute_local_file_path_to_encrypt}`, Body:  data },(err,data)=>{
+    //   if (err) {
+    //     console.error(err);
+    //   } else {
+    //     console.log('File uploaded successfully');
+    //   }
+    // })
+    //  await s3.putObject({ Bucket: result[0].bucket_name, Key: `/encrypted/${absolute_local_file_path_to_encrypt}`, Body:  encrypted },(err,data)=>{
+    //   if (err) {
+    //     console.error(err);
+    //   } else {
+    //     console.log('File uploaded successfully');
+    //   }
+    // })
   // const params = {Bucket: 'demo-bucket-sftp-start-ica', Key: '/tmp', Body: fs.createReadStream("/tmp/encrypted-secrets.txt")};
-  await Promise.all([
-    s3.upload({ Bucket: "demo-bucket-sftp-start-ica", Key: "/check", Body: fs.readFileSync("/tmp/encrypted-secrets.txt") }).promise()
-    ]);
+  // await Promise.all([
+  //   s3.upload({ Bucket: "demo-bucket-sftp-start-ica", Key: "/success", Body: fs.readFileSync(`${absolute_local_file_path_to_encrypt}.gpg`) }).promise()
+  //   ]);
+
   // await s3.upload(params,function(err,data){
   //   if(err){
   //     console.log(err)
@@ -86,9 +107,12 @@ exports.encrypt= async  (event,context) => {
   //   }
   // })
   console.log("uploaded")
-  return "a";
+  return `${absolute_local_file_path_to_encrypt}.gpg`;
 }
 
+const TransferFile= (absolute_local_encrypted_file_path) =>{
+   console.log()
+}
 // const check_file_pair= async(event)=>{
 //   await Promise.all(event["Records"].map(async(item)=>{
 //     file_path=item['s3']['object']['key']
@@ -307,12 +331,75 @@ exports.lambda_handler= async  (event,context) => {
 
     const command = new GetObjectCommand(input);
     const command2 = new GetObjectCommand(input2);
-
+  //   s3.getObject(getParams, function(err, data) {
+  //     // Handle any error and exit
+  //     if (err)
+  //         return err;
+  
+  //   // No error happened
+  //   // Convert Body from a Buffer to a String
+  //   let objectData = data.Body.toString('utf-8'); // Use the encoding necessary
+  // });
     const response=await client.send(command)
     const response2=await client.send(command2)
 
     console.log("await response",response)
     console.log("await response2",response2)
+    // const file1 = new File([response.Body], `/tmp/${derived_local_path}`);
+    // const file2 = new File([response2.Body], `/tmp/${derived_local_path2}`);
+    // console.log("file1 file2",file1,file2)
+    const buffer1=Buffer.concat(await response.Body.toArray())
+    const buffer2=Buffer.concat(await response2.Body.toArray())
+    const file1Content=buffer1.toString()
+    const file2Content=buffer2.toString()
+
+    console.log("beffer1",buffer1)
+    console.log("beffer1",buffer2)
+    console.log("file1Content",file1Content)
+    console.log(file2Content)
+    const file1=fs.writeFileSync(`/tmp/${derived_local_path}`, file1Content, function (err) {
+      if (err){
+         throw err;
+      }else{
+      console.log('Replaced!');
+      s3.upload({ Bucket: result[0].bucket_name, Key: "check/file.csv", Body: fs.readFileSync(`/tmp/${derived_local_path}`) }).promise()
+
+      }
+    });
+    const file2=fs.writeFileSync(`/tmp/${derived_local_path2}`, file2Content, function (err) {
+      if (err) throw err;
+      console.log('Replaced!');
+    });
+    const encryptedFile1Path=await pgpEncryptFile(`/tmp/${derived_local_path}`,result)
+    const encryptedFile2Path=await pgpEncryptFile(`/tmp/${derived_local_path2}`,result)
+    console.log("encryptedFile1Path")
+    console.log(encryptedFile1Path,encryptedFile2Path)
+    const transfer_file=  TransferFile(encryptedFile1Path,encryptedFile2Path)
+
+    // const encryptFile2=this.pgpEncryptFile(`/tmp/${derived_local_path2}`)
+
+    // const data=fs.readFileSync(`/tmp/${derived_local_path}`,
+    // { encoding: 'utf8', flag: 'r' });
+    // console.log("filedata",data)
+
+
+    // s3.putObject({ Bucket: result[0].bucket_name, Key: `/success/${derived_local_path}`, Body:  fs.createReadStream(`/tmp/${derived_local_path}`) },(err,data)=>{
+    //   if (err) {
+    //     console.error(err);
+    //   } else {
+    //     console.log('File uploaded successfully');
+    //   }
+    // })
+
+    // await Promise.all([
+    //   s3.upload({ Bucket: result[0].bucket_name, Key: "check/file.csv", Body: fs.readFileSync(`/tmp/${derived_local_path}`) }).promise()
+    //   ]);
+    // pgpEncryptFile(`/tmp/${derived_local_path}`)
+    // console.log("file1 file2",file1,file2)
+
+    // encrypted_file1_path=pgp_encrypt_file(`/tmp/${derived_local_path}`,recipient_key_path)
+
+
   }catch(e){
     console.log(e)
   }
