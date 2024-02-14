@@ -1,0 +1,17 @@
+{
+  "name": "nodejs_pgp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lambda_funtion.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.1557.0",
+    "gpg": "^0.6.0",
+    "openpgp": "^5.11.0",
+    "pgp": "^0.1.0"
+  }
+}
