@@ -9,9 +9,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "adm-zip": "^0.5.10",
     "aws-sdk": "^2.1557.0",
     "gpg": "^0.6.0",
     "openpgp": "^5.11.0",
-    "pgp": "^0.1.0"
+    "pgp": "^0.1.0",
+    "zlib": "^1.0.5"
   }
 }
