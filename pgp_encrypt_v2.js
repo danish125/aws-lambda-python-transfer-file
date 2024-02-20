@@ -289,7 +289,7 @@ exports.lambda_handler= async  (event,context) => {
   const ssmFilePrefixParameterName = process.env.ssmFilePrefixParameterName
 
   const input={
-    Name: ssmParameterName,
+    Name: ssmFilePrefixParameterName,
     WithDecryption: true
   }
   const command = new GetParameterCommand(input);
