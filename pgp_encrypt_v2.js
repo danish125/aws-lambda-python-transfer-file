@@ -295,6 +295,7 @@ exports.lambda_handler= async  (event,context) => {
   const command = new GetParameterCommand(input);
   const response = await  client.send(command);
   console.log("ssmresponse",response.Parameter.Value)
+  console.log("typeof",typeof response.Parameter.Value)
   const prefixList=response.Parameter.Value
 
   for (let i = 0; i < prefixList.length; i++) {
