@@ -296,12 +296,18 @@ exports.lambda_handler= async  (event,context) => {
   const response = await  client.send(command);
   console.log("ssmresponse",response.Parameter.Value)
   const prefixList=response.Parameter.Value
-  prefixList.map((item)=>{
-    if(!item['s3']['object']['key'].includes(item)){
+
+  for (let i = 0; i < prefixList.length; i++) {
+    if(!item['s3']['object']['key'].includes(prefixList[i])){
         console.log("invalid file")
         return "invalid file"
     }
-  })
+  }//   prefixList.map((item)=>{
+//     if(!item['s3']['object']['key'].includes(item)){
+//         console.log("invalid file")
+//         return "invalid file"
+//     }
+//   })
   try{
     remote_path_in_array=result[0].file_name_to_search.split("/")
     derived_local_path=remote_path_in_array[remote_path_in_array.length-1]
