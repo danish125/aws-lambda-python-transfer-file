@@ -296,7 +296,7 @@ exports.lambda_handler= async  (event,context) => {
   const response = await  client.send(command);
   console.log("ssmresponse",response.Parameter.Value)
   console.log("typeof",typeof response.Parameter.Value)
-  const prefixList=response.Parameter.Value
+  let prefixList=response.Parameter.Value
   prefixList=prefixList.replace(/'/g, '"')
   prefixList=JSON.parse(prefixList)
 
