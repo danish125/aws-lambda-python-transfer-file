@@ -297,13 +297,26 @@ exports.lambda_handler= async  (event,context) => {
   console.log("ssmresponse",response.Parameter.Value)
   console.log("typeof",typeof response.Parameter.Value)
   const prefixList=response.Parameter.Value
+  prefixList=prefixList.replace(/'/g, '"')
+  prefixList=JSON.parse(prefixList)
+
+  var validFile=false
 
   for (let i = 0; i < prefixList.length; i++) {
-    if(!item['s3']['object']['key'].includes(prefixList[i])){
-        console.log("invalid file")
-        return "invalid file"
+    if(item['s3']['object']['key'].includes(prefixList[i])){
+        // console.log("invalid file")
+        validFile=true
+
+        // return "invalid file"
     }
-  }//   prefixList.map((item)=>{
+
+  }
+  if(!validFile){
+    console.log("invalid file")
+    return "invalid file"
+  }//   var validFile=false
+
+  //   prefixList.map((item)=>{
 //     if(!item['s3']['object']['key'].includes(item)){
 //         console.log("invalid file")
 //         return "invalid file"
