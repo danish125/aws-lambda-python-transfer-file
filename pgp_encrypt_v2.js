@@ -299,11 +299,12 @@ exports.lambda_handler= async  (event,context) => {
   let prefixList=response.Parameter.Value
   prefixList=prefixList.replace(/'/g, '"')
   prefixList=JSON.parse(prefixList)
+  console.log("typeofprocessed",typeof prefixList)
 
   var validFile=false
 
   for (let i = 0; i < prefixList.length; i++) {
-    if(item['s3']['object']['key'].includes(prefixList[i])){
+    if(event['Records'][0]['s3']['object']['key'].includes(prefixList[i])){
         // console.log("invalid file")
         validFile=true
 
